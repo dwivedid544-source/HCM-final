@@ -1,0 +1,255 @@
+import React, { useState } from 'react';
+import { useSuperAdmin } from '../../context/SuperAdminContext';
+import { 
+  Building2, 
+  Plus, 
+  Trash2, 
+  Edit3, 
+  Search, 
+  X, 
+  User, 
+  Users,
+  Grid
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import StatsCounter from '../../components/StatsCounter';
+import PageHeader from '../../shared/components/ui/PageHeader';
+
+const DepartmentManagement = () => {
+  const { departments, addDept, updateDept, deleteDept, organizations, users } = useSuperAdmin();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState(null);
+  
+  // Form State
+  const [name, setName] = useState('');
+  const [head, setHead] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+
+  const openAddModal = () => {
+    setEditingDept(null);
+    setName('');
+    setHead('');
+    setSelectedOrgId(organizations[0]?.id || '');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (dept) => {
+    setEditingDept(dept);
+    setName(dept.name);
+    setHead(dept.head === 'None' ? '' : (dept.head || ''));
+    setSelectedOrgId(dept.organizationId || organizations[0]?.id || '');
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name || !selectedOrgId) return;
+
+    const payload = {
+      name,
+      head: head && head.trim() !== '' ? head.trim() : 'None',
+      organizationId: selectedOrgId
+    };
+
+    let success = false;
+    if (editingDept) {
+      success = await updateDept(editingDept.id, payload);
+    } else {
+      success = await addDept(payload);
+    }
+    if (success) {
+      setIsModalOpen(false);
+    }
+  };
+
+  const filteredDepts = departments.filter(dept => 
+    dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (dept.head && dept.head.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (dept.organizationName && dept.organizationName.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="p-6 w-full space-y-6">
+      {/* Header */}
+      <PageHeader
+        title="Department Management"
+        description="Configure company divisions, department heads, and monitor personnel counts."
+        icon={Building2}
+        actions={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="btn-primary flex items-center gap-2 cursor-pointer"
+          >
+            <Plus size={18} />
+            <span>Create Department</span>
+          </button>
+        }
+      />
+
+      {/* Control Bar */}
+      <div className="card p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search departments by name or head..."
+            value={searchTerm}onChange={(e) => setSearchTerm(e.target.value)}/>
+        </div>
+        <div className="text-xs font-bold text-slate-400 font-bold bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+          Departments: {departments.length} Divisions
+        </div>
+      </div>
+
+      {/* Departments Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AnimatePresence>
+          {filteredDepts.length > 0 ? (
+            filteredDepts.map((dept) => (
+              <motion.div
+                key={dept.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
+                      <Building2 size={22} />
+                    </div>
+                    <StatsCounter target={dept.count || 0} label="Staff" suffix="" />
+                  </div>
+
+                  <h3 className="hcm-section-heading mb-1 leading-snug">{dept.name}</h3>
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-400 mt-2">
+                    <User size={14}/>
+                    <span>Dept. Head: </span>
+                    <span className={dept.head && dept.head !== 'None' ? "text-slate-700 dark:text-slate-300 font-bold" : "text-slate-400 dark:text-slate-500 font-normal"}>
+                      {dept.head && dept.head !== 'None' ? dept.head : 'None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500 mb-6 mt-1">
+                    <Building2 size={12}/>
+                    <span>Organization: </span>
+                    <span className="text-slate-500 dark:text-slate-400 font-bold">{dept.organizationName}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-50 dark:border-slate-800/50">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(dept)}
+                    title="Edit Department"
+                    className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/30 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteDept(dept.id)}
+                    title="Delete Department"
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-full bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-slate-100 dark:border-slate-800 text-slate-400 font-medium text-sm">
+              No divisions match your search query.
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Department Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="hcm-modal-overlay">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}>
+              <div className="p-6 border-b border-slate-50 dark:border-slate-800/80 flex items-center justify-between">
+                <h3 className="hcm-section-heading flex items-center gap-2.5">
+                  <Grid className="text-amber-600" size={22} />
+                  {editingDept ? 'Edit Division' : 'Create Department'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div>
+                  <label className="form-label">Organization</label>
+                  <select
+                    value={selectedOrgId}onChange={(e) => {
+                      setSelectedOrgId(e.target.value);
+                      setHead(''); // Reset head manager choice when switching organizations
+                    }}required
+                  >
+                    <option value="">Select Organization</option>
+                    {organizations.map(org => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label">Department Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Operations"
+                    value={name}onChange={(e) => setName(e.target.value)}/>
+                </div>
+
+                <div>
+                  <label className="form-label">Head of Department (Optional)</label>
+                  <select
+                    value={head}onChange={(e) => setHead(e.target.value)}>
+                    <option value="">None (No Head Assigned)</option>
+                    {users
+                      .filter(u => {
+                        const targetOrg = organizations.find(o => o.id === selectedOrgId);
+                        const isOrgMatch = !selectedOrgId || u.organizationId === selectedOrgId || u.department === targetOrg?.name || u.organization?.id === selectedOrgId;
+                        return (u.status === 'active' || u.status === 'Active') && u.role !== 'CANDIDATE' && u.role !== 'Candidate';
+                      })
+                      .map(u => (
+                        <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div className="pt-4 flex items-center gap-3 border-t border-slate-50 dark:border-slate-800/80">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary flex-1"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default DepartmentManagement;

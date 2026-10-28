@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload Test</title>
+</head>
+<body style="padding: 50px; font-family: sans-serif;">
+  <h2>Pure HTML File Selection Test</h2>
+  <p>If you can select a file here, the issue is React. If you can't, your browser is blocking files.</p>
+  
+  <input type="file" id="testFile" style="font-size: 20px;" />
+  <h3 id="result" style="color: blue;">Waiting for file...</h3>
+
+  <script>
+    document.getElementById('testFile').addEventListener('change', function(e) {
+      if (e.target.files.length > 0) {
+        document.getElementById('result').innerText = "SUCCESS! You selected: " + e.target.files[0].name;
+        document.getElementById('result').style.color = "green";
+      } else {
+        document.getElementById('result').innerText = "FAILED: Browser returned 0 files.";
+        document.getElementById('result').style.color = "red";
+      }
+    });
+  </script>
+</body>
+</html>

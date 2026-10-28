@@ -1,0 +1,151 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authAPI } from '../utils/apiService';
+import { isPermitted, getFirstAccessibleRoute } from '../utils/permissionUtils';
+import { useAuth } from '../hooks/useAuth';
+
+const PermissionContext = createContext();
+
+export const PermissionProvider = ({ children }) => {
+  const { user, isAuthenticated, loading: authLoading, previewRole } = useAuth();
+  
+  const [permissions, setPermissions] = useState(null);
+  const [employeePermissions, setEmployeePermissions] = useState(null);
+  const [entitlements, setEntitlements] = useState(null);
+  const [planName, setPlanName] = useState(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [roleKey, setRoleKey] = useState(null);
+  const [roleName, setRoleName] = useState(null);
+  const [isCustomOverride, setIsCustomOverride] = useState(false);
+  const [landingPage, setLandingPage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPermissions = useCallback(async () => {
+    if (!isAuthenticated) {
+      setPermissions(null);
+      setEmployeePermissions(null);
+      setEntitlements(null);
+      setPlanName(null);
+      setIsSuperAdmin(false);
+      setRoleKey(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await authAPI.getMyPermissions();
+      const { 
+        isSuperAdmin: isSa, 
+        permissions: perms, 
+        employeePermissions: empPerms,
+        entitlements: entl,
+        planName: pName,
+        role, 
+        roleName: rName, 
+        isCustomOverride: isCust, 
+        landingPage: lPage 
+      } = response.data?.data || {};
+      
+      setIsSuperAdmin(isSa);
+      setPermissions(isSa ? 'FULL_ACCESS' : perms);
+      setEmployeePermissions(isSa ? 'FULL_ACCESS' : empPerms);
+      setEntitlements(isSa ? 'FULL_ACCESS' : (Array.isArray(entl) ? entl : []));
+      setPlanName(pName || null);
+      setRoleKey(role ? role.toLowerCase() : null);
+      setRoleName(rName || null);
+      setIsCustomOverride(isCust || false);
+      setLandingPage(lPage || null);
+    } catch (err) {
+      console.error("Failed to fetch permissions", err);
+      setPermissions({});
+      setEmployeePermissions({});
+      setEntitlements([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchPermissions();
+    }
+  }, [authLoading, isAuthenticated, fetchPermissions]);
+
+  // Global event listener for instant permission sync across components / tabs
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      fetchPermissions();
+    };
+
+    window.addEventListener('permissions_updated', handlePermissionsUpdated);
+
+    return () => {
+      window.removeEventListener('permissions_updated', handlePermissionsUpdated);
+    };
+  }, [fetchPermissions]);
+
+  // Dynamic overrides for preview mode
+  const activeIsSuperAdmin = previewRole ? (previewRole.toLowerCase() === 'superadmin') : isSuperAdmin;
+  const activeRoleKey = previewRole ? previewRole.toLowerCase() : roleKey;
+  const activePermissions = previewRole ? 'FULL_ACCESS' : permissions;
+  const activeEmployeePermissions = previewRole ? 'FULL_ACCESS' : employeePermissions;
+  const activeEntitlements = previewRole ? 'FULL_ACCESS' : entitlements;
+  const activeRoleName = previewRole ? `${previewRole.charAt(0).toUpperCase()}${previewRole.slice(1)} (Preview)` : roleName;
+
+  // Check whether a SaaS feature is entitled for the tenant's current pricing plan
+  const hasEntitlement = useCallback((featureId) => {
+    if (previewRole) return true;
+    if (activeIsSuperAdmin) return true;
+    if (activeEntitlements === 'FULL_ACCESS') return true;
+    if (!featureId) return true;
+    if (!activeEntitlements || (Array.isArray(activeEntitlements) && activeEntitlements.length === 0)) return true;
+    if (!Array.isArray(activeEntitlements)) return true;
+    return activeEntitlements.includes(featureId);
+  }, [previewRole, activeIsSuperAdmin, activeEntitlements]);
+
+  // Expose the same helpers as permissionUtils but bound to current state
+  const hasPermission = useCallback((module, action = 'view', scope = null) => {
+    if (previewRole) return true; // Bypass checks during preview runs
+    if (scope === 'employee' && employeePermissions) {
+      return isPermitted(employeePermissions, module, action);
+    }
+    return isPermitted(permissions, module, action);
+  }, [permissions, employeePermissions, previewRole]);
+
+  const hasModuleAccess = useCallback((module, scope = null) => {
+    if (previewRole) return true; // Bypass checks during preview runs
+    if (scope === 'employee' && employeePermissions) {
+      return isPermitted(employeePermissions, module, 'view');
+    }
+    return isPermitted(permissions, module, 'view');
+  }, [permissions, employeePermissions, previewRole]);
+
+  const triggerGlobalPermissionSync = useCallback(() => {
+    fetchPermissions();
+    window.dispatchEvent(new CustomEvent('permissions_updated'));
+  }, [fetchPermissions]);
+
+  return (
+    <PermissionContext.Provider value={{ 
+      permissions: activePermissions, 
+      employeePermissions: activeEmployeePermissions,
+      entitlements: activeEntitlements,
+      planName,
+      loading: loading || authLoading, 
+      isSuperAdmin: activeIsSuperAdmin, 
+      roleKey: activeRoleKey,
+      roleName: activeRoleName,
+      isCustomOverride,
+      landingPage,
+      hasPermission,
+      hasModuleAccess,
+      hasEntitlement,
+      refreshPermissions: fetchPermissions,
+      triggerGlobalPermissionSync
+    }}>
+      {children}
+    </PermissionContext.Provider>
+  );
+};
+
+export const usePermissionContext = () => useContext(PermissionContext);

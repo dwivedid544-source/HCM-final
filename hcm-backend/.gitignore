@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Runtime uploads and backups
+public/uploads/*
+!public/uploads/.gitkeep
+public/backups/*
+!public/backups/.gitkeep
+scratch/verify_extract_*
+
+# Archives and binaries
+*.zip
+*.tar.gz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

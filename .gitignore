@@ -1,0 +1,58 @@
+# ============================================================
+# ROOT GITIGNORE - HCM ENTERPRISE PLATFORM
+# ============================================================
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+build/
+*/build/
+
+# Environment Variables & Secrets
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*/.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+build_errors.log
+
+# System & OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Large Archives & Binaries
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Backend Uploads & Generated Data
+hcm-backend/public/uploads/*
+!hcm-backend/public/uploads/.gitkeep
+hcm-backend/public/backups/*
+!hcm-backend/public/backups/.gitkeep
+hcm-backend/scratch/verify_extract_*
